@@ -56,6 +56,7 @@ details{margin-top:14px}summary{font-weight:800;cursor:pointer;padding:6px 0}
  <button data-t="harga" aria-pressed="false">Harga & Margin</button>
  <button data-t="status" aria-pressed="false">Status Toko</button>
  <button data-t="pesan" aria-pressed="false">Pesanan</button>
+ <button data-t="lay" aria-pressed="false">Layanan</button>
 </div>
 
 <div class="card" id="t-prod">
@@ -80,6 +81,16 @@ details{margin-top:14px}summary{font-weight:800;cursor:pointer;padding:6px 0}
  <h2>Pesanan masuk</h2><p class="h">Pesanan baru muncul di sini setelah pembeli menekan Kirim bukti bayar.</p>
  <div class="btns"><button class="p" id="ord" type="button">Muat pesanan</button></div>
  <div id="olist" style="margin-top:12px"></div>
+</div>
+
+<div class="card hid" id="t-lay">
+ <h2>Layanan</h2><p class="h">Satu baris per item. Tulis persis seperti contoh.</p>
+ <label for="lj">Jasa: nama | kategori | harga mulai | deskripsi</label><textarea id="lj" rows="4" placeholder="Edit Video | Edit | 5000 | Potong dan efek"></textarea>
+ <label for="lp">Pulsa: nominal per baris (angka)</label><textarea id="lp" rows="3" placeholder="5000"></textarea>
+ <label for="la">Biaya admin pulsa (Rp)</label><input id="la" type="number" min="0" value="1500">
+ <label for="ld">Data: nama paket | harga</label><textarea id="ld" rows="3" placeholder="3 GB · 30 hari | 20000"></textarea>
+ <label for="lm">Diamond: game | nominal | harga modal</label><textarea id="lm" rows="4" placeholder="Mobile Legends | 5 | 1800"></textarea>
+ <div class="btns" style="margin-top:12px"><button class="p" id="lsave" type="button">Simpan layanan</button><button id="lload" type="button">Muat layanan</button></div>
 </div>
 
 <details class="card" style="margin-top:0"><summary>Cadangan</summary>
@@ -144,7 +155,7 @@ $("del").onclick=function(){if(cur<0||!confirm("Hapus "+items[cur].n+"?"))return
 /* menu */
 document.querySelectorAll(".menu button").forEach(function(b){b.onclick=function(){
  document.querySelectorAll(".menu button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
- ["prod","harga","status","pesan"].forEach(function(t){$("t-"+t).classList.toggle("hid",t!==b.dataset.t)})}});
+ ["prod","harga","status","pesan","lay"].forEach(function(t){$("t-"+t).classList.toggle("hid",t!==b.dataset.t)})}});
 
 /* login */
 function fbStart(c){if(!window.firebase||!c.key||!c.pid)return false;if(!firebase.apps.length)firebase.initializeApp({apiKey:c.key,authDomain:c.pid+".firebaseapp.com",projectId:c.pid,databaseURL:c.db});
@@ -152,6 +163,7 @@ function fbStart(c){if(!window.firebase||!c.key||!c.pid)return false;if(!firebas
 function waitUser(){return new Promise(function(res,rej){var c=cfg();if(!fbStart(c)){rej(new Error("x"));return}var un=firebase.auth().onAuthStateChanged(function(u){un();cu=u;res(u)})})}
 function authed(url,opts){return waitUser().then(function(u){if(!u)throw new Error("x");return u.getIdToken()}).then(function(t){return fetch(url+(url.indexOf("?")>-1?"&":"?")+"auth="+encodeURIComponent(t),opts||{})})}
 function errText(e){var c=(e&&e.code)||"";var h={"auth/unauthorized-domain":"Domain GitHub Pages belum ada di Authorized domains.","auth/operation-not-allowed":"Metode login belum diaktifkan di Sign-in method.","auth/invalid-credential":"Email atau sandi salah, atau akun belum dibuat.","auth/wrong-password":"Sandi salah.","auth/user-not-found":"Akun belum dibuat di Authentication > Users.","auth/invalid-email":"Format email salah.","auth/network-request-failed":"Tidak ada internet.","auth/too-many-requests":"Terlalu banyak percobaan. Tunggu beberapa menit.","auth/popup-blocked":"Popup diblokir browser."};return (h[c]||"Gagal masuk.")+" ["+(c||(e&&e.message)||"tanpa kode")+"]"}
+function failMsg(e){if(e&&e.status)return"Ditolak database (kode "+e.status+"). Cek Rules: email di aturan harus sama dengan email yang masuk.";if(e&&e.code)return errText(e);return"Gagal menyimpan. Pastikan sudah masuk, lalu coba lagi."}
 function needLogin(){msg("Belum masuk. Tekan Masuk dengan Google dulu.",1);window.scrollTo(0,0)}
 function needSetup(){msg("Isi pengaturan awal dulu (buka Pengaturan awal).",1);$("login").querySelectorAll("details")[1].open=true}
 function saveCfg(c){try{localStorage.setItem(C,JSON.stringify(c))}catch(e){}}
@@ -172,22 +184,35 @@ $("mg").onchange=function(){var v=parseFloat(this.value);if(!(v>=0)){this.value=
 /* simpan ke toko */
 $("pub").onclick=function(){var c=cfg();if(!c.db){needSetup();return}recalc();save();draw();
  authed(c.db+"/vtz_produk.json",{method:"PUT",body:JSON.stringify({v:2,t:Date.now(),margin:M,items:items})})
- .then(function(r){if(!r.ok)throw 0;msg("Tersimpan. Toko akan menampilkan data baru.")}).catch(function(){needLogin()})};
+ .then(function(r){if(!r.ok)throw r;msg("Tersimpan. Toko akan menampilkan data baru.")}).catch(function(e){msg(failMsg(e),1)})};
 
 /* status */
 function setStatus(mode){var c=cfg();if(!c.db){needSetup();return}
- authed(c.db+"/vtz_status.json",{method:"PUT",body:JSON.stringify({mode:mode})}).then(function(r){if(!r.ok)throw 0;
- $("stm").textContent="Sekarang: "+({on:"Online",off:"Offline",auto:"Otomatis"})[mode]+". Toko berubah dalam 30 detik.";msg("Status diubah.")}).catch(function(){needLogin()})}
+ authed(c.db+"/vtz_status.json",{method:"PUT",body:JSON.stringify({mode:mode})}).then(function(r){if(!r.ok)throw r;
+ $("stm").textContent="Sekarang: "+({on:"Online",off:"Offline",auto:"Otomatis"})[mode]+". Toko berubah dalam 30 detik.";msg("Status diubah.")}).catch(function(e){msg(failMsg(e),1)})}
 $("s-on").onclick=function(){setStatus("on")};$("s-off").onclick=function(){setStatus("off")};$("s-auto").onclick=function(){setStatus("auto")};
 
 /* pesanan */
 $("ord").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
- authed(c.db+"/vtz_pesanan.json").then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){
+ authed(c.db+"/vtz_pesanan.json").then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){
   var a=Object.keys(d||{}).map(function(k){return Object.assign({id:k},d[k])}).sort(function(x,y){return(y.waktu||0)-(x.waktu||0)});
   $("olist").innerHTML=a.length?a.map(function(x){return'<div class="ord"><b>'+esc(x.nama||"-")+'</b><br>'+esc(x.pesanan||"")+'<br><small>'+rp(x.total||0)+' · '+(x.status==="baru"?"BARU":esc(x.status||"-"))+' · '+new Date(x.waktu||0).toLocaleString("id-ID")+'</small><div class="btns" style="margin-top:8px"><button class="sm" data-o="'+esc(x.id)+'" data-s="dibayar">Sudah dibayar</button><button class="sm" data-o="'+esc(x.id)+'" data-s="selesai">Selesai</button></div></div>'}).join(""):'<p class="note">Belum ada pesanan.</p>'
- }).catch(function(){needLogin()})};
+ }).catch(function(e){msg(failMsg(e),1)})};
 $("olist").onclick=function(e){var b=e.target.closest("button[data-o]");if(!b)return;var c=cfg();
- authed(c.db+"/vtz_pesanan/"+b.dataset.o+".json",{method:"PATCH",body:JSON.stringify({status:b.dataset.s})}).then(function(r){if(!r.ok)throw 0;$("ord").click()}).catch(function(){needLogin()})};
+ authed(c.db+"/vtz_pesanan/"+b.dataset.o+".json",{method:"PATCH",body:JSON.stringify({status:b.dataset.s})}).then(function(r){if(!r.ok)throw r;$("ord").click()}).catch(function(e){msg(failMsg(e),1)})};
+
+/* layanan */
+function layText(){var l=$("lj").value.split("\n").map(function(x){return x.trim()}).filter(Boolean);return l}
+function parseLay(){
+ var jasa=$("lj").value.split("\n").map(function(l){return l.split("|").map(function(v){return v.trim()})}).filter(function(a){return a.length>=3&&a[0]}).map(function(a){return{i:"🛠️",n:a[0],c:a[1]||"Lainnya",p:parseInt(a[2],10)||0,d:a[3]||""}});
+ var pulsa=$("lp").value.split("\n").map(function(v){return parseInt(v.replace(/\D/g,""),10)}).filter(function(v){return v>0});
+ var data=$("ld").value.split("\n").map(function(l){return l.split("|").map(function(v){return v.trim()})}).filter(function(a){return a.length>=2&&a[0]&&parseInt(a[1],10)>0}).map(function(a){return[a[0],parseInt(a[1],10)]});
+ var dia=$("lm").value.split("\n").map(function(l){return l.split("|").map(function(v){return v.trim()})}).filter(function(a){return a.length>=3&&a[0]&&parseInt(a[2],10)>0}).map(function(a){return{g:a[0],z:a[1],modal:parseInt(a[2],10)}});
+ return{v:1,t:Date.now(),jasa:jasa,pulsa:pulsa,admin:parseInt($("la").value,10)||0,data:data,diamond:dia}}
+function showLay(d){$("lj").value=(d.jasa||[]).map(function(x){return[x.n,x.c,x.p,x.d].join(" | ")}).join("\n");$("lp").value=(d.pulsa||[]).join("\n");$("la").value=d.admin||0;$("ld").value=(d.data||[]).map(function(x){return x[0]+" | "+x[1]}).join("\n");$("lm").value=(d.diamond||[]).map(function(x){return[x.g,x.z,x.modal].join(" | ")}).join("\n")}
+$("lsave").onclick=function(){var c=cfg();if(!c.db){needSetup();return}var body=parseLay();
+ authed(c.db+"/vtz_layanan.json",{method:"PUT",body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw r;msg("Layanan tersimpan.")}).catch(function(e){msg(failMsg(e),1)})};
+$("lload").onclick=function(){var c=cfg();if(!c.db){needSetup();return}fetch(c.db+"/vtz_layanan.json").then(function(r){return r.json()}).then(function(d){if(!d)throw 0;showLay(d);msg("Layanan dimuat.")}).catch(function(){msg("Belum ada data layanan di cloud.",1)})};
 
 /* cadangan */
 $("exp").onclick=function(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({v:2,margin:M,items:items})],{type:"application/json"}));a.download="cadangan_victyz.json";a.click()};
