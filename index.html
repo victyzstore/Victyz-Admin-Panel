@@ -38,10 +38,10 @@ details{margin-top:14px}summary{font-weight:800;cursor:pointer;padding:6px 0}
  <h2>1. Masuk dulu</h2>
  <p class="h" id="loginhelp">Masuk dengan akun Google yang emailnya sudah dipasang di aturan database.</p>
  <button class="p big" id="gl" type="button">Masuk dengan Google</button>
- <details><summary>Masuk pakai email (cadangan)</summary>
+ <details><summary>Masuk pakai email (cadangan)</summary><form id="lf" autocomplete="on">
   <label for="em">Email</label><input id="em" type="email" autocomplete="username">
   <label for="pw">Sandi</label><input id="pw" type="password" autocomplete="current-password">
-  <div class="btns" style="margin-top:12px"><button id="login2" type="button">Masuk</button></div>
+  <div class="btns" style="margin-top:12px"><button id="login2" type="submit">Masuk</button></div></form>
  </details>
  <details><summary>Pengaturan awal (sekali saja)</summary>
   <label for="db">Database URL</label><input id="db" autocomplete="off" placeholder="https://...firebasedatabase.app">
@@ -148,19 +148,19 @@ document.querySelectorAll(".menu button").forEach(function(b){b.onclick=function
 
 /* login */
 function fbStart(c){if(!window.firebase||!c.key||!c.pid)return false;if(!firebase.apps.length)firebase.initializeApp({apiKey:c.key,authDomain:c.pid+".firebaseapp.com",projectId:c.pid,databaseURL:c.db});
- if(!fbOk){fbOk=true;firebase.auth().onAuthStateChanged(function(u){cu=u;$("pill").textContent=u?"Sudah masuk":"Belum masuk";$("pill").className="pill"+(u?" on":"")})}return true}
+ if(!fbOk){fbOk=true;firebase.auth().getRedirectResult().then(function(r){if(r&&r.user)msg("Berhasil masuk: "+r.user.email)}).catch(function(e){msg(errText(e),1)});firebase.auth().onAuthStateChanged(function(u){cu=u;$("pill").textContent=u?"Sudah masuk":"Belum masuk";$("pill").className="pill"+(u?" on":"")})}return true}
 function authed(url,opts){return(cu?cu.getIdToken():Promise.reject(new Error("x"))).then(function(t){return fetch(url+(url.indexOf("?")>-1?"&":"?")+"auth="+encodeURIComponent(t),opts||{})})}
+function errText(e){var c=(e&&e.code)||"";var h={"auth/unauthorized-domain":"Domain GitHub Pages belum ada di Authorized domains.","auth/operation-not-allowed":"Metode login belum diaktifkan di Sign-in method.","auth/invalid-credential":"Email atau sandi salah, atau akun belum dibuat.","auth/wrong-password":"Sandi salah.","auth/user-not-found":"Akun belum dibuat di Authentication > Users.","auth/invalid-email":"Format email salah.","auth/network-request-failed":"Tidak ada internet.","auth/too-many-requests":"Terlalu banyak percobaan. Tunggu beberapa menit.","auth/popup-blocked":"Popup diblokir browser."};return (h[c]||"Gagal masuk.")+" ["+(c||(e&&e.message)||"tanpa kode")+"]"}
 function needLogin(){msg("Belum masuk. Tekan Masuk dengan Google dulu.",1);window.scrollTo(0,0)}
 function needSetup(){msg("Isi pengaturan awal dulu (buka Pengaturan awal).",1);$("login").querySelectorAll("details")[1].open=true}
 function saveCfg(c){try{localStorage.setItem(C,JSON.stringify(c))}catch(e){}}
 $("gl").onclick=function(){var c=cfg();if(!c.db||!c.key||!c.pid){needSetup();return}
  if(location.protocol==="file:"){msg("Google tidak bisa dari file di HP. Pakai Masuk pakai email (cadangan).",1);return}
  if(!fbStart(c)){msg("Gagal memuat Firebase. Cek internet.",1);return}saveCfg(c);
- firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(function(r){msg("Berhasil masuk: "+r.user.email)})
- .catch(function(e){msg(e&&e.code==="auth/unauthorized-domain"?"Alamat ini belum diizinkan di Firebase (Authorized domains).":"Gagal masuk.",1)})};
-$("login2").onclick=function(){var c=cfg();if(!c.db||!c.key||!c.pid){needSetup();return}if(!c.em||!$("pw").value){msg("Isi email dan sandi dulu.",1);return}
+ firebase.auth().signInWithRedirect(new firebase.auth.GoogleAuthProvider()).catch(function(e){msg(errText(e),1)})};
+$("lf").onsubmit=function(e){e.preventDefault();var c=cfg();if(!c.db||!c.key||!c.pid){needSetup();return}if(!c.em||!$("pw").value){msg("Isi email dan sandi dulu.",1);return}
  if(!fbStart(c)){msg("Gagal memuat Firebase. Cek internet.",1);return}saveCfg(c);
- firebase.auth().signInWithEmailAndPassword(c.em,$("pw").value).then(function(r){$("pw").value="";msg("Berhasil masuk: "+r.user.email)}).catch(function(){msg("Email atau sandi salah.",1)})};
+ firebase.auth().signInWithEmailAndPassword(c.em,$("pw").value).then(function(r){$("pw").value="";msg("Berhasil masuk: "+r.user.email)}).catch(function(e){msg(errText(e),1)})};
 $("save").onclick=function(){var c=cfg();if(!c.db||!c.key||!c.pid){msg("Lengkapi Database URL, API key, dan Project ID.",1);return}saveCfg(c);fbStart(c);msg("Pengaturan disimpan.")};
 $("pull").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
  fetch(c.db+"/vtz_produk.json").then(function(r){return r.json()}).then(function(d){var l=norm(d);if(!l)throw 0;items=l;M=+(d.margin)||M;$("mg").value=M;save();draw();msg("Data dari cloud sudah dimuat.")}).catch(function(){msg("Belum ada data di cloud, atau alamat salah.",1)})};
