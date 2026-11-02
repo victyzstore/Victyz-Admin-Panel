@@ -57,6 +57,9 @@ details{margin-top:14px}summary{font-weight:800;cursor:pointer;padding:6px 0}
  <button data-t="status" aria-pressed="false">Status Toko</button>
  <button data-t="pesan" aria-pressed="false">Pesanan</button>
  <button data-t="lay" aria-pressed="false">Layanan</button>
+ <button data-t="vou" aria-pressed="false">Voucher</button>
+ <button data-t="pel" aria-pressed="false">Pelanggan</button>
+ <button data-t="akun" aria-pressed="false">Akun Game</button>
 </div>
 
 <div class="card" id="t-prod">
@@ -91,6 +94,32 @@ details{margin-top:14px}summary{font-weight:800;cursor:pointer;padding:6px 0}
  <label for="ld">Data: nama paket | harga</label><textarea id="ld" rows="3" placeholder="3 GB · 30 hari | 20000"></textarea>
  <label for="lm">Diamond: game | nominal | harga modal</label><textarea id="lm" rows="4" placeholder="Mobile Legends | 5 | 1800"></textarea>
  <div class="btns" style="margin-top:12px"><button class="p" id="lsave" type="button">Simpan layanan</button><button id="lload" type="button">Muat layanan</button></div>
+</div>
+
+<div class="card hid" id="t-vou">
+ <h2>Buat kode voucher</h2><p class="h">Kode dibuat otomatis. Kode asli hanya tampil sekali di layar ini, jadi salin sebelum keluar.</p>
+ <label for="vn">Jumlah kode</label><input id="vn" type="number" min="1" max="100" value="5">
+ <label for="vp">Potongan (%)</label><input id="vp" type="number" min="1" max="100" value="10">
+ <label for="vx">Berlaku sampai (kosongkan jika tanpa batas)</label><input id="vx" type="date">
+ <label style="display:flex;gap:8px;align-items:center;margin-top:14px"><input id="vs" type="checkbox" checked style="width:auto">Sekali pakai</label>
+ <div class="btns" style="margin-top:12px"><button class="p" id="vbuat" type="button">Buat kode</button></div>
+ <label for="vout">Kode baru</label><textarea id="vout" rows="6" readonly></textarea>
+ <p class="note">Kode di atas belum tersimpan di toko sebelum toko diperbarui.</p>
+</div>
+
+<div class="card hid" id="t-pel">
+ <h2>Pelanggan Premium</h2><p class="h">Isi setelah pembayaran dikonfirmasi. Data ini hanya terlihat di panel.</p>
+ <label for="pd">Daftar: nama | no WhatsApp | tipe (Biasa, Premium, atau Super Premium)</label><textarea id="pd" rows="6" placeholder="Budi | 081234567890 | Premium"></textarea>
+ <h3 style="margin-top:14px">Diskon tiap tipe</h3>
+ <label for="dp">Diskon Premium (%)</label><input id="dp" type="number" min="0" max="100" value="5">
+ <label for="ds">Diskon Super Premium (%)</label><input id="ds" type="number" min="0" max="100" value="10">
+ <div class="btns" style="margin-top:12px"><button class="p" id="psave" type="button">Simpan pelanggan</button><button id="pload" type="button">Muat pelanggan</button></div>
+</div>
+
+<div class="card hid" id="t-akun">
+ <h2>Akun Game untuk dijual</h2><p class="h">Satu baris per akun: judul | game | harga | status | deskripsi. Status: Tersedia atau Terjual.</p>
+ <label for="ak">Daftar akun</label><textarea id="ak" rows="6" placeholder="Akun Mythic Glory | Mobile Legends | 150000 | Tersedia | Skin lengkap, rank Mythic"></textarea>
+ <div class="btns" style="margin-top:12px"><button class="p" id="asave" type="button">Simpan akun</button><button id="aload" type="button">Muat akun</button></div>
 </div>
 
 <details class="card" style="margin-top:0"><summary>Cadangan</summary>
@@ -155,7 +184,7 @@ $("del").onclick=function(){if(cur<0||!confirm("Hapus "+items[cur].n+"?"))return
 /* menu */
 document.querySelectorAll(".menu button").forEach(function(b){b.onclick=function(){
  document.querySelectorAll(".menu button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
- ["prod","harga","status","pesan","lay"].forEach(function(t){$("t-"+t).classList.toggle("hid",t!==b.dataset.t)})}});
+ ["prod","harga","status","pesan","lay","vou","pel","akun"].forEach(function(t){$("t-"+t).classList.toggle("hid",t!==b.dataset.t)})}});
 
 /* login */
 function fbStart(c){if(!window.firebase||!c.key||!c.pid)return false;if(!firebase.apps.length)firebase.initializeApp({apiKey:c.key,authDomain:c.pid+".firebaseapp.com",projectId:c.pid,databaseURL:c.db});
@@ -211,8 +240,41 @@ function parseLay(){
  return{v:1,t:Date.now(),jasa:jasa,pulsa:pulsa,admin:parseInt($("la").value,10)||0,data:data,diamond:dia}}
 function showLay(d){$("lj").value=(d.jasa||[]).map(function(x){return[x.n,x.c,x.p,x.d].join(" | ")}).join("\n");$("lp").value=(d.pulsa||[]).join("\n");$("la").value=d.admin||0;$("ld").value=(d.data||[]).map(function(x){return x[0]+" | "+x[1]}).join("\n");$("lm").value=(d.diamond||[]).map(function(x){return[x.g,x.z,x.modal].join(" | ")}).join("\n")}
 $("lsave").onclick=function(){var c=cfg();if(!c.db){needSetup();return}var body=parseLay();
- authed(c.db+"/vtz_layanan.json",{method:"PUT",body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw r;msg("Layanan tersimpan.")}).catch(function(e){msg(failMsg(e),1)})};
+ authed(c.db+"/vtz_layanan.json",{method:"PATCH",body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw r;msg("Layanan tersimpan.")}).catch(function(e){msg(failMsg(e),1)})};
 $("lload").onclick=function(){var c=cfg();if(!c.db){needSetup();return}fetch(c.db+"/vtz_layanan.json").then(function(r){return r.json()}).then(function(d){if(!d)throw 0;showLay(d);msg("Layanan dimuat.")}).catch(function(){msg("Belum ada data layanan di cloud.",1)})};
+
+/* voucher */
+function genCode(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";var b=new Uint8Array(12);crypto.getRandomValues(b);var t="";for(var i=0;i<12;i++){t+=a[b[i]%a.length];if(i%4==3&&i<11)t+="-"}return"VTZ-"+t}
+function sha(t){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(t)).then(function(buf){return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("")})}
+$("vbuat").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
+ if(!window.crypto||!crypto.subtle){msg("Browser tidak mendukung. Buka lewat alamat https.",1);return}
+ var n=Math.min(100,Math.max(1,parseInt($("vn").value,10)||1)),pct=Math.min(100,Math.max(1,parseInt($("vp").value,10)||10)),sampai=$("vx").value||"",sekali=$("vs").checked;
+ var codes=[];for(var i=0;i<n;i++)codes.push(genCode());
+ Promise.all(codes.map(sha)).then(function(hs){var body={};hs.forEach(function(h){body[h]={pct:pct,sekali:sekali,sampai:sampai,aktif:true,dibuat:Date.now()}});
+  return authed(c.db+"/vtz_voucher.json",{method:"PATCH",body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw r;$("vout").value=codes.join("\n");msg(n+" kode dibuat. Salin sekarang.")})})
+ .catch(function(e){msg(failMsg(e),1)})};
+
+/* pelanggan */
+function normTipe(t){t=(t||"").toLowerCase();if(t.indexOf("super")>-1)return"Super Premium";if(t.indexOf("premium")>-1)return"Premium";return"Biasa"}
+function parsePel(){var d={};$("pd").value.split("\n").forEach(function(l){var a=l.split("|").map(function(v){return v.trim()});if(a.length<2)return;var wa=a[1].replace(/\D/g,"");if(wa.length<8)return;d[wa]={n:a[0]||"-",wa:wa,tipe:normTipe(a[2])}});return d}
+function showPel(d){var lines=[];Object.keys(d||{}).forEach(function(k){var x=d[k];lines.push(x.n+" | "+x.wa+" | "+x.tipe)});$("pd").value=lines.join("\n")}
+$("psave").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
+ var dp=Math.min(100,Math.max(0,parseInt($("dp").value,10)||0)),ds=Math.min(100,Math.max(0,parseInt($("ds").value,10)||0));
+ Promise.all([
+  authed(c.db+"/vtz_pelanggan.json",{method:"PUT",body:JSON.stringify({v:1,t:Date.now(),daftar:parsePel()})}),
+  authed(c.db+"/vtz_diskon.json",{method:"PUT",body:JSON.stringify({premium:dp,super:ds})})
+ ]).then(function(rs){if(!rs[0].ok||!rs[1].ok)throw rs[0].ok?rs[1]:rs[0];msg("Pelanggan dan diskon tersimpan.")}).catch(function(e){msg(failMsg(e),1)})};
+$("pload").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
+ authed(c.db+"/vtz_pelanggan.json").then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){showPel(d&&d.daftar);msg("Pelanggan dimuat.")}).catch(function(e){msg(failMsg(e),1)});
+ fetch(c.db+"/vtz_diskon.json").then(function(r){return r.json()}).then(function(d){if(d){$("dp").value=d.premium||0;$("ds").value=d.super||0}}).catch(function(){})};
+
+/* akun game */
+function parseAk(){return $("ak").value.split("\n").map(function(l){return l.split("|").map(function(v){return v.trim()})}).filter(function(a){return a.length>=3&&a[0]&&parseInt(a[2],10)>0}).map(function(a){return{judul:a[0],game:a[1]||"",harga:parseInt(a[2],10),status:/terjual/i.test(a[3]||"")?"Terjual":"Tersedia",deskripsi:a[4]||""}})}
+function showAk(list){$("ak").value=(list||[]).map(function(x){return[x.judul,x.game,x.harga,x.status,x.deskripsi].join(" | ")}).join("\n")}
+$("asave").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
+ authed(c.db+"/vtz_layanan.json",{method:"PATCH",body:JSON.stringify({akun:parseAk()})}).then(function(r){if(!r.ok)throw r;msg("Akun tersimpan.")}).catch(function(e){msg(failMsg(e),1)})};
+$("aload").onclick=function(){var c=cfg();if(!c.db){needSetup();return}
+ fetch(c.db+"/vtz_layanan.json").then(function(r){return r.json()}).then(function(d){showAk(d&&d.akun);msg("Akun dimuat.")}).catch(function(){msg("Belum ada data akun.",1)})};
 
 /* cadangan */
 $("exp").onclick=function(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({v:2,margin:M,items:items})],{type:"application/json"}));a.download="cadangan_victyz.json";a.click()};
